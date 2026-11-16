@@ -16,6 +16,19 @@
 #define T1H_CYCLES 560
 #define BIT_CYCLES 1000
 
+#define NEOPIXEL_PADCONF_ADDR  0x0408401CU
+#define PAD_OUTPUT_DISABLE    (1U << 21)
+
+static void neopixel_pinmux_init(void)
+{
+    volatile uint32_t *padconf =
+        (volatile uint32_t *)NEOPIXEL_PADCONF_ADDR;
+
+    *padconf &= ~PAD_OUTPUT_DISABLE;
+
+    __asm__ volatile("dsb sy" ::: "memory");
+}
+
 static void cycle_counter_init(void)
 {
     uint32_t value;
@@ -124,6 +137,7 @@ static void delay_long(void)
 
 int main(void)
 {
+    neopixel_pinmux_init();
     GPIO_CLEAR = GPIO_MASK;
     GPIO_DIR &= ~GPIO_MASK;
 
