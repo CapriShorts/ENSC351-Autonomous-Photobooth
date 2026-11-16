@@ -19,3 +19,4 @@ build/
 # Compiled firmware and backups
 *.elf
 *.backup
+/compile_commands.json
