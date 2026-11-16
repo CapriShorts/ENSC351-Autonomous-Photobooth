@@ -20,6 +20,8 @@
 
 #define RESET_CYCLES 400000U
 
+static NeoPixel_Color pixels[NEOPIXEL_COUNT];
+
 static void pinmux_init(void)
 {
     volatile uint32_t *padconf =
@@ -114,31 +116,56 @@ void NeoPixel_init(void)
 
     cycle_counter_init();
 
-    GPIO_CLEAR = GPIO_MASK;
+    for (int i = 0; i < NEOPIXEL_COUNT; i++) {
+        pixels[i] = (NeoPixel_Color){0, 0, 0};
+    }
 
+    GPIO_CLEAR = GPIO_MASK;
     wait_cycles(cycles(), RESET_CYCLES);
+}
+
+void NeoPixel_setPixel(uint8_t index,
+                       uint8_t red,
+                       uint8_t green,
+                       uint8_t blue)
+{
+    if (index >= NEOPIXEL_COUNT) {
+        return;
+    }
+
+    pixels[index].red = red;
+    pixels[index].green = green;
+    pixels[index].blue = blue;
 }
 
 void NeoPixel_setAll(uint8_t red,
                      uint8_t green,
                      uint8_t blue)
 {
+    for (int i = 0; i < NEOPIXEL_COUNT; i++) {
+        NeoPixel_setPixel(i, red, green, blue);
+    }
+}
+
+void NeoPixel_show(void)
+{
     unsigned int key = irq_lock();
 
     for (int i = 0; i < NEOPIXEL_COUNT; i++) {
-        send_byte(green);
-        send_byte(red);
-        send_byte(blue);
+        send_byte(pixels[i].green);
+        send_byte(pixels[i].red);
+        send_byte(pixels[i].blue);
     }
 
     GPIO_CLEAR = GPIO_MASK;
 
     irq_unlock(key);
 
-    wait_cycles(cycles(), RESET_CYCLES);
+    wait_cycles(cycles(), 400000);
 }
 
 void NeoPixel_clear(void)
 {
     NeoPixel_setAll(0, 0, 0);
+    NeoPixel_show();
 }
