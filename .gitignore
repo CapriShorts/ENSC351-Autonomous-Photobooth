@@ -1,1 +1,21 @@
 build/
+
+# Generated build files
+build-r5/
+build-arm64/
+build/
+
+# Compiled firmware
+*.elf
+
+# Temporary backups
+*.backup
+
+# Generated build directories
+/build-r5/
+/build-arm64/
+/build/
+
+# Compiled firmware and backups
+*.elf
+*.backup
