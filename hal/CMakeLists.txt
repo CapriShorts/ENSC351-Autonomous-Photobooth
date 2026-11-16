@@ -5,6 +5,9 @@
 include_directories(hal/include)
 file(GLOB MY_SOURCES "src/*.c")
 
-add_library(hal STATIC ${MY_SOURCES})
-
+add_library(hal STATIC
+    src/button.c
+    src/adc.c
+    src/light_sensor.c
+)
 target_include_directories(hal PUBLIC include)

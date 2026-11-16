@@ -1,0 +1,8 @@
+/home/vboxuser/ensc351/work/ENSC351-Autonomous-Photobooth/build-arm64/CMakeFiles/edit_cache.dir
+/home/vboxuser/ensc351/work/ENSC351-Autonomous-Photobooth/build-arm64/CMakeFiles/rebuild_cache.dir
+/home/vboxuser/ensc351/work/ENSC351-Autonomous-Photobooth/build-arm64/hal/CMakeFiles/hal.dir
+/home/vboxuser/ensc351/work/ENSC351-Autonomous-Photobooth/build-arm64/hal/CMakeFiles/edit_cache.dir
+/home/vboxuser/ensc351/work/ENSC351-Autonomous-Photobooth/build-arm64/hal/CMakeFiles/rebuild_cache.dir
+/home/vboxuser/ensc351/work/ENSC351-Autonomous-Photobooth/build-arm64/app/CMakeFiles/hello_world.dir
+/home/vboxuser/ensc351/work/ENSC351-Autonomous-Photobooth/build-arm64/app/CMakeFiles/edit_cache.dir
+/home/vboxuser/ensc351/work/ENSC351-Autonomous-Photobooth/build-arm64/app/CMakeFiles/rebuild_cache.dir
