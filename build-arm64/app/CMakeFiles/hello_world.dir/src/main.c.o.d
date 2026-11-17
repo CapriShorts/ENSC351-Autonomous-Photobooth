@@ -38,4 +38,28 @@ app/CMakeFiles/hello_world.dir/src/main.c.o: \
  /usr/aarch64-linux-gnu/include/bits/types/struct_itimerspec.h \
  /usr/aarch64-linux-gnu/include/bits/types/locale_t.h \
  /usr/aarch64-linux-gnu/include/bits/types/__locale_t.h \
+ /usr/aarch64-linux-gnu/include/signal.h \
+ /usr/aarch64-linux-gnu/include/bits/signum-generic.h \
+ /usr/aarch64-linux-gnu/include/bits/signum-arch.h \
+ /usr/aarch64-linux-gnu/include/bits/types/sig_atomic_t.h \
+ /usr/aarch64-linux-gnu/include/bits/types/sigset_t.h \
+ /usr/aarch64-linux-gnu/include/bits/types/__sigset_t.h \
+ /usr/aarch64-linux-gnu/include/bits/types/siginfo_t.h \
+ /usr/aarch64-linux-gnu/include/bits/types/__sigval_t.h \
+ /usr/aarch64-linux-gnu/include/bits/siginfo-arch.h \
+ /usr/aarch64-linux-gnu/include/bits/siginfo-consts.h \
+ /usr/aarch64-linux-gnu/include/bits/types/sigevent_t.h \
+ /usr/aarch64-linux-gnu/include/bits/sigevent-consts.h \
+ /usr/aarch64-linux-gnu/include/bits/sigaction.h \
+ /usr/aarch64-linux-gnu/include/bits/types/stack_t.h \
+ /usr/aarch64-linux-gnu/include/sys/ucontext.h \
+ /usr/aarch64-linux-gnu/include/bits/pthreadtypes.h \
+ /usr/aarch64-linux-gnu/include/bits/thread-shared-types.h \
+ /usr/aarch64-linux-gnu/include/bits/pthreadtypes-arch.h \
+ /usr/aarch64-linux-gnu/include/bits/atomic_wide_counter.h \
+ /usr/aarch64-linux-gnu/include/bits/struct_mutex.h \
+ /usr/aarch64-linux-gnu/include/bits/struct_rwlock.h \
+ /usr/aarch64-linux-gnu/include/bits/sigthread.h \
+ /usr/aarch64-linux-gnu/include/bits/signal_ext.h \
+ /usr/lib/gcc-cross/aarch64-linux-gnu/12/include/stdbool.h \
  /home/vboxuser/ensc351/work/ENSC351-Autonomous-Photobooth/hal/include/hal/light_sensor.h
