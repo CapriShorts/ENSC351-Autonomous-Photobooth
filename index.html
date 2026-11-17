@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<!-- AEPB Photo Booth website
+     Author: Ambardeep Chahal, AEPB team (ENSC 351, Fall 2026) -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#213a4c">
+  <title>AEPB Photo Booth</title>
+  <link rel="preload" href="fonts/BigShouldersDisplay.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="flash" aria-hidden="true"></div>
+
+  <div class="layout">
+    <section class="booth" aria-labelledby="booth-title">
+      <header class="booth-header">
+        <h1 id="booth-title">AEPB Photo Booth</h1>
+        <button type="button" class="icon-button" id="open-settings" hidden aria-label="Booth settings">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+            <path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5A3.5 3.5 0 1 1 13 8.5a3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/>
+          </svg>
+        </button>
+      </header>
+
+      <div class="ring-wrap">
+        <svg class="ring" id="ring" viewBox="0 0 200 200" role="img" aria-labelledby="ring-label">
+          <title id="ring-label">Ring light</title>
+          <g id="leds"></g>
+        </svg>
+        <div class="ring-center" aria-live="polite">
+          <span class="ring-number" id="ring-number"></span>
+          <span class="ring-state" id="ring-state">Connecting…</span>
+        </div>
+      </div>
+
+      <p class="booth-hint" id="booth-hint"></p>
+
+      <div class="controls">
+        <button type="button" class="btn btn-go" id="capture" hidden>Take photo</button>
+        <button type="button" class="btn btn-stop" id="cancel" hidden>Cancel</button>
+      </div>
+
+      <dl class="readouts" id="readouts" hidden>
+        <div><dt>Room light</dt><dd id="light-level">–</dd></div>
+        <div><dt>Flash</dt><dd id="flash-state">–</dd></div>
+      </dl>
+    </section>
+
+    <main class="gallery" aria-labelledby="gallery-title">
+      <header class="gallery-header">
+        <h2 id="gallery-title">Photos</h2>
+        <span class="count" id="photo-count"></span>
+      </header>
+
+      <p class="empty" id="empty" hidden>
+        No photos yet. Press the green button on the booth, or tap Take photo.
+      </p>
+      <ul class="prints" id="prints"></ul>
+    </main>
+  </div>
+
+  <!-- Full-size photo -->
+  <dialog class="viewer" id="viewer" aria-labelledby="viewer-caption">
+    <figure>
+      <img id="viewer-img" alt="">
+      <figcaption id="viewer-caption"></figcaption>
+    </figure>
+    <div class="viewer-bar">
+      <div class="viewer-group">
+        <a class="btn btn-light" id="viewer-download" download>Download</a>
+        <button type="button" class="btn btn-quiet btn-danger" id="viewer-delete" hidden>Delete</button>
+      </div>
+      <div class="viewer-group">
+        <button type="button" class="btn btn-quiet" id="viewer-prev">Newer</button>
+        <button type="button" class="btn btn-quiet" id="viewer-next">Older</button>
+      </div>
+    </div>
+    <button type="button" class="icon-button viewer-close" id="viewer-close" aria-label="Close photo">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+    </button>
+  </dialog>
+
+  <!-- Settings -->
+  <dialog class="settings" id="settings" aria-labelledby="settings-title">
+    <form id="settings-form" method="dialog">
+      <h2 id="settings-title">Booth settings</h2>
+
+      <div class="field">
+        <label for="countdownSeconds">Countdown</label>
+        <div class="range-row">
+          <input type="range" id="countdownSeconds" name="countdownSeconds" min="1" max="10" step="1">
+          <output for="countdownSeconds" id="countdown-out"></output>
+        </div>
+      </div>
+
+      <fieldset class="field">
+        <legend>Flash</legend>
+        <div class="segmented">
+          <input type="radio" name="flashMode" id="flash-auto" value="auto"><label for="flash-auto">Auto</label>
+          <input type="radio" name="flashMode" id="flash-on" value="on"><label for="flash-on">Always</label>
+          <input type="radio" name="flashMode" id="flash-off" value="off"><label for="flash-off">Never</label>
+        </div>
+        <p class="help">Auto uses the light sensor and only flashes in a dark room.</p>
+      </fieldset>
+
+      <div class="field field-inline">
+        <label for="ringColor">Ring light colour</label>
+        <input type="color" id="ringColor" name="ringColor">
+      </div>
+
+      <div class="field">
+        <label for="ringBrightness">Ring light brightness</label>
+        <div class="range-row">
+          <input type="range" id="ringBrightness" name="ringBrightness" min="0" max="100" step="5">
+          <output for="ringBrightness" id="brightness-out"></output>
+        </div>
+      </div>
+
+      <div class="field field-inline">
+        <label for="soundEnabled">Countdown beeps</label>
+        <input type="checkbox" class="switch" id="soundEnabled" name="soundEnabled">
+      </div>
+
+      <div class="field field-inline">
+        <label for="gestureEnabled">Start with a hand gesture</label>
+        <input type="checkbox" class="switch" id="gestureEnabled" name="gestureEnabled">
+      </div>
+
+      <p class="form-error" id="settings-error" role="alert" hidden></p>
+
+      <div class="settings-actions">
+        <button type="button" class="btn btn-quiet" id="settings-close">Close</button>
+        <button type="submit" class="btn btn-go" id="settings-save">Save settings</button>
+      </div>
+      <p class="uptime" id="uptime"></p>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
