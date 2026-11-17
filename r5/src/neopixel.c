@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <zephyr/irq.h>
+#include <zephyr/kernel.h>
 
 #define GPIO_BASE 0x04201000U
 
@@ -19,6 +20,10 @@
 #define PAD_OUTPUT_DISABLE   (1U << 21)
 
 #define RESET_CYCLES 400000U
+
+#define COUNTDOWN_BRIGHTNESS 10
+#define FLASH_BRIGHTNESS 30
+#define FLASH_DURATION_MS 200
 
 static NeoPixel_Color pixels[NEOPIXEL_COUNT];
 
@@ -76,11 +81,44 @@ static inline uint32_t cycles(void)
     return value;
 }
 
-static inline void wait_cycles(uint32_t start,
-                               uint32_t duration)
+//static inline void wait_cycles(uint32_t start,
+//                               uint32_t duration)
+//{
+//    while ((uint32_t)(cycles() - start) < duration) {
+//        __asm__ volatile("nop");
+//    }
+//}
+
+static inline void wait_cycles(uint32_t start, uint32_t duration)
 {
+    uint32_t previous = start;
+    uint32_t unchanged = 0;
+
     while ((uint32_t)(cycles() - start) < duration) {
-        __asm__ volatile("nop");
+        uint32_t current = cycles();
+
+        if (current == previous) {
+            if (++unchanged >= 1000000U) {
+                break;
+            }
+        } else {
+            previous = current;
+            unchanged = 0;
+        }
+    }
+}
+static void delay_ms(uint32_t milliseconds)
+{
+    // Approximate 800 MHz R5 cycle counter.
+    // Use chunks to avoid overflowing the 32-bit counter.
+    const uint32_t cycles_per_ms = 800000U;
+
+    while (milliseconds > 0) {
+        uint32_t chunk_ms = milliseconds > 1000U
+                            ? 1000U : milliseconds;
+
+        wait_cycles(cycles(), chunk_ms * cycles_per_ms);
+        milliseconds -= chunk_ms;
     }
 }
 
@@ -168,4 +206,48 @@ void NeoPixel_clear(void)
 {
     NeoPixel_setAll(0, 0, 0);
     NeoPixel_show();
+}
+
+
+void NeoPixel_startCountdown(bool enableFlash)
+{
+    // 3 seconds: Green, all 24 LEDs
+    NeoPixel_setAll(0, COUNTDOWN_BRIGHTNESS, 0);
+    NeoPixel_show();
+    delay_ms(1000);
+
+    // 2 seconds: Yellow, 16 LEDs
+    NeoPixel_setAll(0, 0, 0);
+
+    for (int i = 0; i < 16; i++) {
+        NeoPixel_setPixel(i,
+                         COUNTDOWN_BRIGHTNESS,
+                         COUNTDOWN_BRIGHTNESS,
+                         0);
+    }
+
+    NeoPixel_show();
+    delay_ms(1000);
+
+    // 1 second: Red, 8 LEDs
+    NeoPixel_setAll(0, 0, 0);
+
+    for (int i = 0; i < 8; i++) {
+        NeoPixel_setPixel(i, COUNTDOWN_BRIGHTNESS, 0, 0);
+    }
+
+    NeoPixel_show();
+    delay_ms(1000);
+
+    // Optional white flash
+    if (enableFlash) {
+        NeoPixel_setAll(FLASH_BRIGHTNESS,
+                        FLASH_BRIGHTNESS,
+                        FLASH_BRIGHTNESS);
+
+        NeoPixel_show();
+        delay_ms(FLASH_DURATION_MS);
+    }
+
+    NeoPixel_clear();
 }

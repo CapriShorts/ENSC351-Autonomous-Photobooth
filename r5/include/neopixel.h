@@ -1,7 +1,9 @@
+
 #ifndef NEOPIXEL_H
 #define NEOPIXEL_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #define NEOPIXEL_COUNT 24
 
@@ -24,5 +26,8 @@ void NeoPixel_setAll(uint8_t red,
 
 void NeoPixel_show(void);
 void NeoPixel_clear(void);
+
+// Countdown animation with optional flash
+void NeoPixel_startCountdown(bool enableFlash);
 
 #endif
