@@ -1,62 +1,63 @@
+#include <stdint.h>
+#include <zephyr/kernel.h>
+#include "neopixel.h"
 
-#define _POSIX_C_SOURCE 200809L
+#define GPIO_BASE 0x04201000U
+#define GPIO_DIR   (*(volatile uint32_t *)(GPIO_BASE + 0x10))
+#define GPIO_CLEAR (*(volatile uint32_t *)(GPIO_BASE + 0x1C))
+#define GPIO_MASK (1U << 7)
+#define PADCONF (*(volatile uint32_t *)0x0408401CU)
 
-#include <stdio.h>
-#include <time.h>
-#include <signal.h>
-#include <stdbool.h>
-
-#include "hal/light_sensor.h"
-
-// Initial threshold; adjust after testing.
-#define FLASH_THRESHOLD_V 0.20
-
-static volatile sig_atomic_t running = 1;
-
-static void handle_signal(int signal)
+static uint32_t read_cycles(void)
 {
-    (void)signal;
-    running = 0;
+    uint32_t value;
+    __asm__ volatile("mrc p15, 0, %0, c9, c13, 0"
+                     : "=r"(value) :: "memory");
+    return value;
+}
+
+static void enable_counter(void)
+{
+    uint32_t value;
+
+    __asm__ volatile("mrc p15, 0, %0, c9, c12, 0"
+                     : "=r"(value));
+
+    value |= (1U << 0) | (1U << 2);
+    value &= ~(1U << 3);
+
+    __asm__ volatile("mcr p15, 0, %0, c9, c12, 0"
+                     :: "r"(value) : "memory");
+
+    value = (1U << 31);
+
+    __asm__ volatile("mcr p15, 0, %0, c9, c12, 1"
+                     :: "r"(value) : "memory");
+
+    __asm__ volatile("isb" ::: "memory");
+}
+
+static void delay_cycles(uint32_t count)
+{
+    uint32_t start = read_cycles();
+
+    while ((uint32_t)(read_cycles() - start) < count) {
+    }
 }
 
 int main(void)
 {
-    signal(SIGINT, handle_signal);
-    signal(SIGTERM, handle_signal);
+    PADCONF &= ~(1U << 21);
+    GPIO_DIR &= ~GPIO_MASK;
+    GPIO_CLEAR = GPIO_MASK;
 
-    printf("Photo Booth - Automatic Flash Detection\n");
+    enable_counter();
+    NeoPixel_init();
 
-    if (LightSensor_init() != 0) {
-        fprintf(stderr, "Failed to initialize light sensor.\n");
-        return 1;
+    while (1) {
+        NeoPixel_startCountdown(true);
+        delay_cycles(800000000U);
     }
 
-    printf("Light sensor initialized successfully.\n");
-
-    const struct timespec delay = {
-        .tv_sec = 0,
-        .tv_nsec = 500000000L
-    };
-
-    while (running) {
-        double voltage = LightSensor_readVoltage();
-
-        if (voltage < 0.0) {
-            fprintf(stderr, "Failed to read light sensor.\n");
-            break;
-        }
-
-        bool flashRequired = voltage < FLASH_THRESHOLD_V;
-
-        printf("Light: %.3f V | Flash: %s\n",
-               voltage,
-               flashRequired ? "YES" : "NO");
-
-        nanosleep(&delay, NULL);
-    }
-
-    LightSensor_cleanup();
-
-    printf("Light sensor stopped.\n");
     return 0;
 }

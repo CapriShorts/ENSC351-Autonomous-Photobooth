@@ -25,6 +25,10 @@ app/CMakeFiles/hello_world.dir/src/main.c.o: \
  /usr/aarch64-linux-gnu/include/bits/stdio_lim.h \
  /usr/aarch64-linux-gnu/include/bits/floatn.h \
  /usr/aarch64-linux-gnu/include/bits/floatn-common.h \
+ /usr/aarch64-linux-gnu/include/stdlib.h \
+ /usr/aarch64-linux-gnu/include/bits/waitflags.h \
+ /usr/aarch64-linux-gnu/include/bits/waitstatus.h \
+ /usr/aarch64-linux-gnu/include/bits/stdlib-float.h \
  /usr/aarch64-linux-gnu/include/time.h \
  /usr/aarch64-linux-gnu/include/bits/time.h \
  /usr/aarch64-linux-gnu/include/bits/types/clock_t.h \
@@ -62,4 +66,5 @@ app/CMakeFiles/hello_world.dir/src/main.c.o: \
  /usr/aarch64-linux-gnu/include/bits/sigthread.h \
  /usr/aarch64-linux-gnu/include/bits/signal_ext.h \
  /usr/lib/gcc-cross/aarch64-linux-gnu/12/include/stdbool.h \
+ /usr/include/gpiod.h \
  /home/vboxuser/ensc351/work/ENSC351-Autonomous-Photobooth/hal/include/hal/light_sensor.h

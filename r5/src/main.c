@@ -6,6 +6,9 @@
 #define GPIO_DIR   (*(volatile uint32_t *)(GPIO_BASE + 0x10))
 #define GPIO_CLEAR (*(volatile uint32_t *)(GPIO_BASE + 0x1C))
 #define GPIO_MASK (1U << 7)
+
+#define GPIO_INPUT (*(volatile uint32_t *)(GPIO_BASE + 0x20))
+#define TRIGGER_MASK (1U << 10)
 #define PADCONF (*(volatile uint32_t *)0x0408401CU)
 
 static uint32_t read_cycles(void)
@@ -47,17 +50,35 @@ static void delay_cycles(uint32_t count)
 
 int main(void)
 {
+    // Existing NeoPixel output setup
     PADCONF &= ~(1U << 21);
     GPIO_DIR &= ~GPIO_MASK;
     GPIO_CLEAR = GPIO_MASK;
+
+    // GPIO24 as input
+    GPIO_DIR |= TRIGGER_MASK;
 
     enable_counter();
     NeoPixel_init();
 
     while (1) {
-        NeoPixel_startCountdown(true);
-        delay_cycles(800000000U);
+    // Wait for GPIO24 to go HIGH
+    while (!(GPIO_INPUT & TRIGGER_MASK)) {
     }
+
+    // Measure how long GPIO24 stays HIGH
+    uint32_t pulseStart = read_cycles();
+
+    while (GPIO_INPUT & TRIGGER_MASK) {
+    }
+
+    uint32_t pulseCycles = read_cycles() - pulseStart;
+
+    // 400 ms threshold, assuming an 800 MHz PMU counter
+    bool flashRequired = pulseCycles < 320000000U;
+
+    NeoPixel_startCountdown(flashRequired);
+}
 
     return 0;
 }
