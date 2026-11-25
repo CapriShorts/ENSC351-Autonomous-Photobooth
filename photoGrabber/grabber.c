@@ -36,7 +36,7 @@ struct buffer {
         size_t length;
 };
 
-static void xioctl(int fh, int request, void *arg)
+static void xioctl(int fh, unsigned long request, void *arg)
 {
         int r;
 
