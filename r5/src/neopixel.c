@@ -25,6 +25,12 @@
 #define FLASH_BRIGHTNESS 30
 #define FLASH_DURATION_MS 200
 
+#define GPIO_INPUT (*(volatile uint32_t *)(GPIO_BASE + 0x20))
+#define TRIGGER_MASK (1U << 10)
+
+#define CANCEL_THRESHOLD_CYCLES 80000000U
+#define CYCLES_PER_MS 800000U
+
 static NeoPixel_Color pixels[NEOPIXEL_COUNT];
 
 static void pinmux_init(void)
@@ -107,19 +113,37 @@ static inline void wait_cycles(uint32_t start, uint32_t duration)
         }
     }
 }
-static void delay_ms(uint32_t milliseconds)
+
+static bool delay_ms_interruptible(uint32_t milliseconds)
 {
-    // Approximate 800 MHz R5 cycle counter.
-    // Use chunks to avoid overflowing the 32-bit counter.
-    const uint32_t cycles_per_ms = 800000U;
+    uint32_t start = cycles();
+    uint32_t duration = milliseconds * CYCLES_PER_MS;
 
-    while (milliseconds > 0) {
-        uint32_t chunk_ms = milliseconds > 1000U
-                            ? 1000U : milliseconds;
+    while ((uint32_t)(cycles() - start) < duration) {
 
-        wait_cycles(cycles(), chunk_ms * cycles_per_ms);
-        milliseconds -= chunk_ms;
+        // Check for an incoming command
+        if (GPIO_INPUT & TRIGGER_MASK) {
+
+            uint32_t pulseStart = cycles();
+
+            // Wait for the complete pulse
+            while (GPIO_INPUT & TRIGGER_MASK) {
+            }
+
+            uint32_t pulseCycles =
+                cycles() - pulseStart;
+
+            // Short pulse = cancel
+            if (pulseCycles < CANCEL_THRESHOLD_CYCLES) {
+                return false;
+            }
+
+            // Ignore additional start commands
+            // while a countdown is active.
+        }
     }
+
+    return true;
 }
 
 static inline void send_bit(uint8_t bit)
@@ -211,12 +235,15 @@ void NeoPixel_clear(void)
 
 void NeoPixel_startCountdown(bool enableFlash)
 {
-    // 3 seconds: Green, all 24 LEDs
+    // 3 seconds remaining: Green, all 24 LEDs
     NeoPixel_setAll(0, COUNTDOWN_BRIGHTNESS, 0);
     NeoPixel_show();
-    delay_ms(1000);
 
-    // 2 seconds: Yellow, 16 LEDs
+    if (!delay_ms_interruptible(1000)) {
+        goto cancelled;
+    }
+
+    // 2 seconds remaining: Yellow, 16 LEDs
     NeoPixel_setAll(0, 0, 0);
 
     for (int i = 0; i < 16; i++) {
@@ -227,27 +254,44 @@ void NeoPixel_startCountdown(bool enableFlash)
     }
 
     NeoPixel_show();
-    delay_ms(1000);
 
-    // 1 second: Red, 8 LEDs
+    if (!delay_ms_interruptible(1000)) {
+        goto cancelled;
+    }
+
+    // 1 second remaining: Red, 8 LEDs
     NeoPixel_setAll(0, 0, 0);
 
     for (int i = 0; i < 8; i++) {
-        NeoPixel_setPixel(i, COUNTDOWN_BRIGHTNESS, 0, 0);
+        NeoPixel_setPixel(i,
+                         COUNTDOWN_BRIGHTNESS,
+                         0,
+                         0);
     }
 
     NeoPixel_show();
-    delay_ms(1000);
+
+    if (!delay_ms_interruptible(1000)) {
+        goto cancelled;
+    }
 
     // Optional white flash
     if (enableFlash) {
+
         NeoPixel_setAll(FLASH_BRIGHTNESS,
                         FLASH_BRIGHTNESS,
                         FLASH_BRIGHTNESS);
 
         NeoPixel_show();
-        delay_ms(FLASH_DURATION_MS);
+
+        if (!delay_ms_interruptible(FLASH_DURATION_MS)) {
+            goto cancelled;
+        }
     }
 
+    NeoPixel_clear();
+    return;
+
+cancelled:
     NeoPixel_clear();
 }

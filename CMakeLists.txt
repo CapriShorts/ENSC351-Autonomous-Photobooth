@@ -20,4 +20,5 @@ add_link_options(-pthread)
 add_subdirectory(hal)  
 add_subdirectory(web)
 add_subdirectory(app)
+add_subdirectory(photoGrabber)
 

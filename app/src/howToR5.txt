@@ -1,0 +1,29 @@
+how to start R5 on a fresh boot of the BYAI
+
+1: check the status of the R5 cores by running the following command in a terminal:
+    for r in /sys/class/remoteproc/remoteproc*; do
+        echo "$r"
+        cat "$r/name"
+        cat "$r/state"
+        cat "$r/firmware"
+        echo
+    done
+
+3: mount NFS:
+    sudo mount -t nfs 192.168.7.1:/home/vboxuser/ensc351/public /mnt/remote
+
+2: check the neopixel firmware exists:
+    ls -lh /lib/firmware/ | grep -E 'photobooth|zephyr|neopixel'
+
+4: select firmware:
+    echo photobooth-r5-flash-v2.elf | sudo tee /sys/class/remoteproc/remoteproc2/firmware
+
+5: start R5:
+    echo start | sudo tee /sys/class/remoteproc/remoteproc2/state
+
+6: verify R5 is running:
+    cat /sys/class/remoteproc/remoteproc2/state
+    cat /sys/class/remoteproc/remoteproc2/firmware
+
+7: run main app:
+    sudo /mnt/remote/hello_world
