@@ -1,13 +1,22 @@
-// Sample button module 
-// Part of the Hardware Abstraction Layer (HAL) 
+#ifndef PHOTOBOOTH_BUTTON_H
+#define PHOTOBOOTH_BUTTON_H
 
-#ifndef _BUTTON_H_
-#define _BUTTON_H_
+typedef struct ButtonInput ButtonInput;
 
-#include <stdbool.h>
+enum ButtonPress {
+    BUTTON_START = 1 << 0,
+    BUTTON_STOP = 1 << 1,
+};
 
-void button_init(void);
-bool button_is_button_pressed(void);
-void button_cleanup(void);
+/* Open Start (GPIO4) and Stop (GPIO6). Returns null on error with errno set. */
+ButtonInput *button_open(void);
+
+/* Return a bitmask of presses, 0 when no press is accepted, or -1 on error.
+ * Use 0 to check without blocking or -1 to wait indefinitely.
+ * Call this from one thread per ButtonInput. */
+int button_wait(ButtonInput *buttons, int timeout_ms);
+
+/* Release both GPIO lines. Accepts null. */
+void button_close(ButtonInput *buttons);
 
 #endif
