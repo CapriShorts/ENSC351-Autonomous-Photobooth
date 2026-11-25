@@ -3,8 +3,8 @@ include_directories(include)
 file(GLOB MY_SOURCES "src/*.c")
 add_executable(hello_world ${MY_SOURCES})
 
-# Make use of the HAL and grabber libraries
-target_link_libraries(hello_world PRIVATE hal gpiod grabber)
+# Make use of the HAL, web, GPIO, and grabber libraries
+target_link_libraries(hello_world PRIVATE hal web gpiod grabber)
 
 # Copy executable to final location
 add_custom_command(TARGET hello_world POST_BUILD
