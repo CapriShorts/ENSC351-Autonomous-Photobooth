@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <zephyr/kernel.h>
 #include "neopixel.h"
+#include "../../shared/booth_protocol.h"
 
 #define GPIO_BASE 0x04201000U
 #define GPIO_DIR   (*(volatile uint32_t *)(GPIO_BASE + 0x10))
@@ -40,12 +41,9 @@ static void enable_counter(void)
     __asm__ volatile("isb" ::: "memory");
 }
 
-static void delay_cycles(uint32_t count)
+static bool cancel_requested(void)
 {
-    uint32_t start = read_cycles();
-
-    while ((uint32_t)(read_cycles() - start) < count) {
-    }
+    return (GPIO_INPUT & TRIGGER_MASK) != 0;
 }
 
 int main(void)
@@ -62,23 +60,28 @@ int main(void)
     NeoPixel_init();
 
     while (1) {
-    // Wait for GPIO24 to go HIGH
-    while (!(GPIO_INPUT & TRIGGER_MASK)) {
+        while (!(GPIO_INPUT & TRIGGER_MASK)) {
+        }
+
+        uint32_t pulseStart = read_cycles();
+        bool expired = false;
+        while (GPIO_INPUT & TRIGGER_MASK) {
+            if ((uint32_t)(read_cycles() - pulseStart) >=
+                BOOTH_START_MAX_MS * 800000U)
+                expired = true;
+        }
+
+        uint32_t pulseCycles = read_cycles() - pulseStart;
+        if (expired || pulseCycles < BOOTH_START_MIN_MS * 800000U)
+            continue;
+
+        bool flashRequired = pulseCycles < BOOTH_START_THRESHOLD_MS * 800000U;
+        NeoPixel_startCountdownCancelable(flashRequired, cancel_requested);
+
+        /* Consume the remainder of a cancel pulse before accepting another start. */
+        while (GPIO_INPUT & TRIGGER_MASK) {
+        }
     }
-
-    // Measure how long GPIO24 stays HIGH
-    uint32_t pulseStart = read_cycles();
-
-    while (GPIO_INPUT & TRIGGER_MASK) {
-    }
-
-    uint32_t pulseCycles = read_cycles() - pulseStart;
-
-    // 400 ms threshold, assuming an 800 MHz PMU counter
-    bool flashRequired = pulseCycles < 320000000U;
-
-    NeoPixel_startCountdown(flashRequired);
-}
 
     return 0;
 }

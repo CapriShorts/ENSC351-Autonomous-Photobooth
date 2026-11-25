@@ -30,4 +30,8 @@ void NeoPixel_clear(void);
 // Countdown animation with optional flash
 void NeoPixel_startCountdown(bool enableFlash);
 
+/* Return false if cancelled before the flash starts. */
+bool NeoPixel_startCountdownCancelable(bool enableFlash,
+                                      bool (*cancelRequested)(void));
+
 #endif

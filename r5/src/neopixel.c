@@ -1,6 +1,8 @@
 #include "neopixel.h"
+#include "../../shared/booth_protocol.h"
 
 #include <stdint.h>
+#include <stddef.h>
 #include <zephyr/irq.h>
 #include <zephyr/kernel.h>
 
@@ -23,7 +25,7 @@
 
 #define COUNTDOWN_BRIGHTNESS 10
 #define FLASH_BRIGHTNESS 30
-#define FLASH_DURATION_MS 200
+#define FLASH_DURATION_MS BOOTH_FLASH_MS
 
 static NeoPixel_Color pixels[NEOPIXEL_COUNT];
 
@@ -209,12 +211,31 @@ void NeoPixel_clear(void)
 }
 
 
+static bool countdown_delay(bool (*cancelRequested)(void))
+{
+    for (unsigned int waited = 0; waited < BOOTH_COUNTDOWN_MS / 3; waited += 5) {
+        if (cancelRequested && cancelRequested())
+            return false;
+        delay_ms(5);
+    }
+    return !(cancelRequested && cancelRequested());
+}
+
 void NeoPixel_startCountdown(bool enableFlash)
 {
+    (void)NeoPixel_startCountdownCancelable(enableFlash, NULL);
+}
+
+bool NeoPixel_startCountdownCancelable(bool enableFlash,
+                                      bool (*cancelRequested)(void))
+{
+    if (cancelRequested && cancelRequested())
+        goto cancelled;
     // 3 seconds: Green, all 24 LEDs
     NeoPixel_setAll(0, COUNTDOWN_BRIGHTNESS, 0);
     NeoPixel_show();
-    delay_ms(1000);
+    if (!countdown_delay(cancelRequested))
+        goto cancelled;
 
     // 2 seconds: Yellow, 16 LEDs
     NeoPixel_setAll(0, 0, 0);
@@ -227,7 +248,8 @@ void NeoPixel_startCountdown(bool enableFlash)
     }
 
     NeoPixel_show();
-    delay_ms(1000);
+    if (!countdown_delay(cancelRequested))
+        goto cancelled;
 
     // 1 second: Red, 8 LEDs
     NeoPixel_setAll(0, 0, 0);
@@ -237,7 +259,8 @@ void NeoPixel_startCountdown(bool enableFlash)
     }
 
     NeoPixel_show();
-    delay_ms(1000);
+    if (!countdown_delay(cancelRequested))
+        goto cancelled;
 
     // Optional white flash
     if (enableFlash) {
@@ -250,4 +273,9 @@ void NeoPixel_startCountdown(bool enableFlash)
     }
 
     NeoPixel_clear();
+    return true;
+
+cancelled:
+    NeoPixel_clear();
+    return false;
 }
