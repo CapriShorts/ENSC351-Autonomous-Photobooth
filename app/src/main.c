@@ -1,7 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include <stdio.h>
-//#include <stdlib.h>
 #include <time.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -13,6 +12,10 @@
 
 #define GPIO_CHIP "gpiochip0"
 #define TRIGGER_LINE 10
+
+#define CANCEL_PULSE_MS 50
+#define NO_FLASH_PULSE_MS 200
+#define FLASH_PULSE_MS 800
 
 static volatile sig_atomic_t running = 1;
 
@@ -32,6 +35,24 @@ static void delay_ms(long milliseconds)
     nanosleep(&delay, NULL);
 }
 
+static int send_pulse(struct gpiod_line *trigger,
+                      long duration_ms)
+{
+    if (gpiod_line_set_value(trigger, 1) < 0) {
+        perror("Failed to set GPIO HIGH");
+        return -1;
+    }
+
+    delay_ms(duration_ms);
+
+    if (gpiod_line_set_value(trigger, 0) < 0) {
+        perror("Failed to set GPIO LOW");
+        return -1;
+    }
+
+    return 0;
+}
+
 int main(void)
 {
     signal(SIGINT, handle_signal);
@@ -40,11 +61,13 @@ int main(void)
     printf("Photo Booth - GPIO Trigger Test\n");
 
     if (LightSensor_init() != 0) {
-        fprintf(stderr, "Failed to initialize light sensor.\n");
+        fprintf(stderr,
+                "Failed to initialize light sensor.\n");
         return 1;
     }
 
-    struct gpiod_chip *chip = gpiod_chip_open_by_name(GPIO_CHIP);
+    struct gpiod_chip *chip =
+        gpiod_chip_open_by_name(GPIO_CHIP);
 
     if (!chip) {
         perror("Failed to open GPIO chip");
@@ -52,9 +75,13 @@ int main(void)
         return 1;
     }
 
-    struct gpiod_line *trigger = gpiod_chip_get_line(chip, TRIGGER_LINE);
+    struct gpiod_line *trigger =
+        gpiod_chip_get_line(chip, TRIGGER_LINE);
 
-    if (!trigger || gpiod_line_request_output(trigger, "photobooth", 0) < 0) {
+    if (!trigger ||
+        gpiod_line_request_output(
+            trigger, "photobooth", 0) < 0) {
+
         perror("Failed to request GPIO24");
         gpiod_chip_close(chip);
         LightSensor_cleanup();
@@ -62,42 +89,62 @@ int main(void)
     }
 
     printf("GPIO24 initialized.\n");
-    printf("Press Enter to trigger the countdown, or Ctrl+C to exit.\n");
+    printf("Enter: Start countdown\n");
+    printf("C + Enter: Cancel countdown\n");
+    printf("Ctrl+C: Exit\n");
+
+    char input[32];
 
     while (running) {
-        double voltage = LightSensor_readVoltage();
 
-        if (voltage < 0.0) {
-            fprintf(stderr, "Failed to read light sensor.\n");
+        printf("\nWaiting for command...\n");
+
+        if (fgets(input, sizeof(input), stdin) == NULL
+            || !running) {
             break;
         }
 
-        bool flashRequired = voltage < FLASH_THRESHOLD_V;
+        // Cancel countdown
+        if (input[0] == 'c' || input[0] == 'C') {
+
+            printf("Cancelling countdown...\n");
+
+            if (send_pulse(trigger, CANCEL_PULSE_MS) < 0) {
+                break;
+            }
+
+            printf("Cancel command sent.\n");
+            continue;
+        }
+
+        // Ignore unrecognized commands
+        if (input[0] != '\n') {
+            printf("Unknown command.\n");
+            continue;
+        }
+
+        // Read ambient light when capture is requested
+        double voltage = LightSensor_readVoltage();
+
+        if (voltage < 0.0) {
+            fprintf(stderr,
+                    "Failed to read light sensor.\n");
+            break;
+        }
+
+        bool flashRequired =
+            voltage < FLASH_THRESHOLD_V;
 
         printf("Light: %.3f V | Flash: %s\n",
                voltage,
                flashRequired ? "YES" : "NO");
 
-        // Wait for user to press Enter
-        int input = getchar();
-
-        if (input == EOF || !running) {
-            break;
-        }
-
-        // Trigger R5
         printf("Starting countdown...\n");
 
-        if (gpiod_line_set_value(trigger, 1) < 0) {
-            perror("Failed to set GPIO HIGH");
-            break;
-        }
-
-        // Short pulse = no flash; long pulse = flash
-        delay_ms(flashRequired ? 200 : 800);
-
-        if (gpiod_line_set_value(trigger, 0) < 0) {
-            perror("Failed to set GPIO LOW");
+        if (send_pulse(trigger,
+                       flashRequired
+                           ? FLASH_PULSE_MS
+                           : NO_FLASH_PULSE_MS) < 0) {
             break;
         }
 
@@ -111,5 +158,6 @@ int main(void)
     LightSensor_cleanup();
 
     printf("Photo booth stopped.\n");
+
     return 0;
 }
