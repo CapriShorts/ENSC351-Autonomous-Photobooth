@@ -18,5 +18,6 @@ out/
 *.map
 *.backup
 /compile_commands.json
-# Captured camera images
+# Generated photographs
 grabber*.ppm
+photos/
