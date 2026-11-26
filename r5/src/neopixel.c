@@ -23,7 +23,7 @@
 
 #define COUNTDOWN_BRIGHTNESS 10
 #define FLASH_BRIGHTNESS 30
-#define FLASH_DURATION_MS 2000
+#define FLASH_DURATION_MS 2500
 
 #define GPIO_INPUT (*(volatile uint32_t *)(GPIO_BASE + 0x20))
 #define TRIGGER_MASK (1U << 10)

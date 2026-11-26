@@ -39,6 +39,7 @@
 #define CAMERA_WIDTH 1280
 #define CAMERA_HEIGHT 720
 #define WARMUP_FRAMES 20
+#define MAX_BURST_PHOTOS 10
 
 #define PHOTO_DIRECTORY "/var/lib/photobooth/photos"
 
@@ -65,7 +66,9 @@ static int xioctl(int fd, unsigned long request, void *arg)
 
 static void *grabber_thread(void *arg)
 {
-    (void)arg;
+    unsigned int photoCount = *(unsigned int *)arg;
+    free(arg);
+    unsigned int photosSaved = 0;
 
     struct v4l2_format fmt;
     struct v4l2_buffer buf;
@@ -208,7 +211,7 @@ static void *grabber_thread(void *arg)
     printf("Camera streaming. Adjusting exposure...\n");
 
     // Discard initial frames to allow exposure adjustment
-    for (i = 0; i < WARMUP_FRAMES;) {
+    for (i = 0; i < WARMUP_FRAMES + photoCount - 1;) {
 
         int result;
 
@@ -257,8 +260,8 @@ static void *grabber_thread(void *arg)
             goto cleanup;
         }
 
-        // Save only the final frame
-        if (i == WARMUP_FRAMES - 1) {
+        // Save the final warmup frame and subsequent burst frames
+        if (i >= WARMUP_FRAMES - 1) {
 
             struct timespec timestamp;
             clock_gettime(CLOCK_REALTIME, &timestamp);
@@ -320,6 +323,7 @@ static void *grabber_thread(void *arg)
             }
 
             if (saved) {
+                photosSaved++;
                 printf("[CAPTURE] Photo successfully saved.\n");
                 printf("[CAPTURE] File: %s\n", out_name);
                 printf("[CAPTURE] Resolution: %u x %u\n",
@@ -328,6 +332,7 @@ static void *grabber_thread(void *arg)
             } else {
                 fprintf(stderr, "Failed to save photo.\n");
                 remove(out_name);
+                goto cleanup;
             }
         }
 
@@ -341,6 +346,9 @@ static void *grabber_thread(void *arg)
     }
 
 cleanup:
+
+    printf("[CAPTURE] Saved %u of %u requested photos.\n",
+           photosSaved, photoCount);
 
     // Stop streaming
     if (streaming) {
@@ -368,9 +376,14 @@ cleanup:
     return NULL;
 }
 
-void Grabber_capture(void)
+void Grabber_captureBurst(int count)
 {
     pthread_t thread;
+
+    if (count < 1 || count > MAX_BURST_PHOTOS) {
+        fprintf(stderr, "Invalid burst count.\n");
+        return;
+    }
 
     pthread_mutex_lock(&captureMutex);
 
@@ -383,15 +396,23 @@ void Grabber_capture(void)
         return;
     }
 
+    unsigned int *photoCount = malloc(sizeof(*photoCount));
+    if (!photoCount) {
+        pthread_mutex_unlock(&captureMutex);
+        perror("malloc");
+        return;
+    }
+    *photoCount = (unsigned int)count;
     captureActive = true;
 
     int result = pthread_create(&thread,
                                 NULL,
                                 grabber_thread,
-                                NULL);
+                                photoCount);
 
     if (result != 0) {
 
+        free(photoCount);
         captureActive = false;
 
         pthread_mutex_unlock(&captureMutex);
@@ -406,6 +427,11 @@ void Grabber_capture(void)
     pthread_detach(thread);
 
     pthread_mutex_unlock(&captureMutex);
+}
+
+void Grabber_capture(void)
+{
+    Grabber_captureBurst(1);
 }
 
 bool Grabber_isCapturing(void)

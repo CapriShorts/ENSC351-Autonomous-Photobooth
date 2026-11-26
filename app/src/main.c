@@ -23,8 +23,9 @@
 #define NO_FLASH_PULSE_MS 200
 #define FLASH_PULSE_MS 800
 
+#define BURST_COUNT 10
 #define COUNTDOWN_MS 3000
-#define FLASH_DURATION_MS 2000
+#define FLASH_DURATION_MS 2500
 #define R5_MARGIN_MS 100
 #define POLL_INTERVAL_MS 20
 
@@ -124,17 +125,21 @@ static void clear_display(void)
     printf("[DISPLAY] Framebuffer cleared.\n");
 }
 
-static void capture_photo(void)
+static void capture_photo(int count)
 {
     int64_t captureStart = get_time_ms();
 
-    printf("[CAPTURE] Photo capture requested.\n");
+    printf("[CAPTURE] Capture requested: %d photo(s).\n", count);
 
     printf("[PREVIEW] Pausing live preview...\n");
     stop_preview();
 
     printf("[CAPTURE] Starting camera capture...\n");
-    Grabber_capture();
+    if (count == 1) {
+        Grabber_capture();
+    } else {
+        Grabber_captureBurst(count);
+    }
 
     printf("[CAPTURE] Waiting for image processing...\n");
     Grabber_cleanup();
@@ -244,6 +249,7 @@ int main(void)
 
     // Countdown tracking
     bool countdownActive = false;
+    int captureCount = 1;
     int64_t countdownStart = 0;
     int64_t r5BusyUntil = 0;
 
@@ -254,7 +260,8 @@ int main(void)
     };
 
     printf("\nPhoto Booth Controls:\n");
-    printf("Enter: Start countdown\n");
+    printf("Enter: Single photo countdown\n");
+    printf("B + Enter: Burst countdown (%d photos)\n", BURST_COUNT);
     printf("C + Enter: Cancel countdown\n");
     printf("P + Enter: Capture test photo\n");
     printf("Ctrl+C: Exit\n");
@@ -326,7 +333,12 @@ int main(void)
                     continue;
                 }
 
-                capture_photo();
+                if (get_time_ms() < r5BusyUntil) {
+                    printf("[R5] Still completing previous sequence.\n");
+                    continue;
+                }
+
+                capture_photo(1);
 
                 printf("[SYSTEM] Waiting for command...\n");
 
@@ -334,7 +346,8 @@ int main(void)
             }
 
             // Ignore unrecognized commands
-            if (input[0] != '\n') {
+            bool burstRequested = input[0] == 'b' || input[0] == 'B';
+            if (input[0] != '\n' && !burstRequested) {
 
                 printf("[SYSTEM] Unknown command.\n");
 
@@ -392,6 +405,8 @@ int main(void)
 
             countdownStart = get_time_ms();
             countdownActive = true;
+            captureCount = burstRequested ? BURST_COUNT : 1;
+            printf("[CAPTURE] Countdown for %d photo(s).\n", captureCount);
 
             r5BusyUntil = countdownStart
                           + COUNTDOWN_MS
@@ -414,7 +429,7 @@ int main(void)
 
             printf("[COUNTDOWN] Countdown timer completed.\n");
 
-            capture_photo();
+            capture_photo(captureCount);
 
             printf("[SYSTEM] Waiting for command...\n");
         }
