@@ -1,0 +1,77 @@
+1. Check the status of the R5 cores
+
+    for r in /sys/class/remoteproc/remoteproc*; do
+        echo "$r"
+        cat "$r/name"
+        cat "$r/state"
+        cat "$r/firmware"
+        echo
+    done
+
+    erify that remoteproc2 corresponds to 79000000.r5f.
+
+    The processor should be offline on a fresh boot. If it is running, stop it before proceeding:
+
+    echo stop | sudo tee /sys/class/remoteproc/remoteproc2/state
+
+    do not stop or modify the other processors.
+
+2. Mount NFS
+
+    sudo mount -t nfs 192.168.7.1:/home/vboxuser/ensc351/public /mnt/remote
+
+    Verify that NFS is mounted:
+
+    mountpoint /mnt/remote
+    ls /mnt/remote/
+
+3. Check that the NeoPixel firmware exists
+
+    ls -lh /mnt/remote/photobooth-r5-cancel.elf
+    file /mnt/remote/photobooth-r5-cancel.elf
+
+    The firmware should be recognized as a 32-bit ARM ELF executable, not simply data.
+
+4. Copy the firmware to the BYAI
+
+    sudo cp /mnt/remote/photobooth-r5-cancel.elf /lib/firmware/
+
+    Verify that the firmware was copied correctly:
+
+    file /lib/firmware/photobooth-r5-cancel.elf
+
+5. Select the firmware
+
+    echo photobooth-r5-cancel.elf | sudo tee /sys/class/remoteproc/remoteproc2/firmware
+
+6. Start the R5
+
+    echo start | sudo tee /sys/class/remoteproc/remoteproc2/state
+
+    If the processor fails to start, check the kernel logs:
+
+    sudo dmesg | tail -30
+
+7. Verify that the R5 is running
+
+    cat /sys/class/remoteproc/remoteproc2/state
+    cat /sys/class/remoteproc/remoteproc2/firmware
+
+    Expected output:
+
+    running
+    photobooth-r5-cancel.elf
+
+8. Run the main application
+
+    sudo /mnt/remote/myApps/hello_world
+
+Current keyboard controls:
+
+Enter: Start countdown.
+
+C + Enter: Cancel countdown.
+
+P + Enter: Capture a test photo.
+
+Ctrl+C: Exit the application.

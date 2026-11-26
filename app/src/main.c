@@ -7,6 +7,7 @@
 #include <gpiod.h>
 
 #include "hal/light_sensor.h"
+#include "grabber.h"
 
 #define FLASH_THRESHOLD_V 0.20
 
@@ -58,23 +59,31 @@ int main(void)
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
 
-    printf("Photo Booth - GPIO Trigger Test\n");
+    printf("Autonomous Photo Booth\n");
 
+    // Initialize ambient light sensor
     if (LightSensor_init() != 0) {
+
         fprintf(stderr,
                 "Failed to initialize light sensor.\n");
+
         return 1;
     }
 
+    // Open GPIO chip
     struct gpiod_chip *chip =
         gpiod_chip_open_by_name(GPIO_CHIP);
 
     if (!chip) {
+
         perror("Failed to open GPIO chip");
+
         LightSensor_cleanup();
+
         return 1;
     }
 
+    // Configure R5 trigger GPIO
     struct gpiod_line *trigger =
         gpiod_chip_get_line(chip, TRIGGER_LINE);
 
@@ -83,14 +92,19 @@ int main(void)
             trigger, "photobooth", 0) < 0) {
 
         perror("Failed to request GPIO24");
+
         gpiod_chip_close(chip);
         LightSensor_cleanup();
+
         return 1;
     }
 
     printf("GPIO24 initialized.\n");
+
+    printf("\nPhoto Booth Controls:\n");
     printf("Enter: Start countdown\n");
     printf("C + Enter: Cancel countdown\n");
+    printf("P + Enter: Capture test photo\n");
     printf("Ctrl+C: Exit\n");
 
     char input[32];
@@ -101,6 +115,7 @@ int main(void)
 
         if (fgets(input, sizeof(input), stdin) == NULL
             || !running) {
+
             break;
         }
 
@@ -109,29 +124,47 @@ int main(void)
 
             printf("Cancelling countdown...\n");
 
-            if (send_pulse(trigger, CANCEL_PULSE_MS) < 0) {
+            if (send_pulse(trigger,
+                           CANCEL_PULSE_MS) < 0) {
+
                 break;
             }
 
             printf("Cancel command sent.\n");
+
+            continue;
+        }
+
+        // Manual photo capture
+        if (input[0] == 'p' || input[0] == 'P') {
+
+            printf("Capturing photo...\n");
+
+            Grabber_capture();
+
             continue;
         }
 
         // Ignore unrecognized commands
         if (input[0] != '\n') {
+
             printf("Unknown command.\n");
+
             continue;
         }
 
-        // Read ambient light when capture is requested
+        // Read ambient light
         double voltage = LightSensor_readVoltage();
 
         if (voltage < 0.0) {
+
             fprintf(stderr,
                     "Failed to read light sensor.\n");
+
             break;
         }
 
+        // Determine whether flash is required
         bool flashRequired =
             voltage < FLASH_THRESHOLD_V;
 
@@ -139,22 +172,30 @@ int main(void)
                voltage,
                flashRequired ? "YES" : "NO");
 
+        // Trigger R5 countdown
         printf("Starting countdown...\n");
 
         if (send_pulse(trigger,
                        flashRequired
                            ? FLASH_PULSE_MS
                            : NO_FLASH_PULSE_MS) < 0) {
+
             break;
         }
 
         printf("Countdown triggered.\n");
     }
 
+    // Cancel any remaining R5 countdown
+    send_pulse(trigger, CANCEL_PULSE_MS);
+
+    // Release GPIO resources
     gpiod_line_set_value(trigger, 0);
     gpiod_line_release(trigger);
     gpiod_chip_close(chip);
 
+    // Clean up camera and light sensor
+    Grabber_cleanup();
     LightSensor_cleanup();
 
     printf("Photo booth stopped.\n");
