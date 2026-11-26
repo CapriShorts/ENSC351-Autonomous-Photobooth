@@ -8,25 +8,26 @@ This guide is intended for teammates starting from a fresh development environme
 
 ### Implementation status
 
-| Component                               |                       Status                     |
-|-----------------------------------------|--------------------------------------------------|
-| HDMI live preview                       |                                          Working |
-| Ambient light ADC and flash decision    |                                          Working |
-| R5 NeoPixel countdown and cancellation  |                                          Working |
-| Linux-to-R5 pulse interface             |                                          Working |
-| Single photo and ten-photo burst        |                                          Working |
-| Flash synchronization                   |                                          Working |
-| Preview restart and framebuffer cleanup |                                          Working |
-| R5 overlap protection                   | Implemented; targeted stress testing recommended |
-| Startup script                          |            Working in existing development setup |
-| Physical capture/cancel buttons         |                    Outstanding group integration |
-| Audio countdown                         |                    Outstanding group integration |
-| Website, image conversion and retrieval |                    Outstanding group integration |
+| Component | Status |
+|---|---|
+| HDMI live preview | Working |
+| Ambient light ADC and flash decision | Working |
+| R5 NeoPixel countdown and cancellation | Working |
+| Linux-to-R5 pulse interface | Working |
+| Single photo and ten-photo burst | Working |
+| Flash synchronization | Initial testing successful; 2500 ms latest configuration |
+| Preview restart and framebuffer cleanup | Working |
+| R5 overlap protection | Implemented; targeted stress testing recommended |
+| Startup script | Working in existing development setup |
+| Physical capture/cancel buttons | Outstanding group integration |
+| Audio countdown | Outstanding group integration |
+| Website, image conversion and retrieval | Outstanding group integration |
 
 The remaining group components should reuse the existing capture and countdown pipeline. They are not prerequisites for testing the current implementation.
 
 ## 2. System architecture
 
+```text
 Light sensor -> MCP3208 -> SPI -> Linux application
                                       |
 Keyboard / future buttons / web ------+
@@ -465,22 +466,22 @@ The current main loop owns countdown state, sensor reading, R5 pulses and camera
 
 ## 13. Testing checklist
 
-| Test                                     |                               Expected result |
-|------------------------------------------|-----------------------------------------------|
-| Fresh boot and startup                   |              R5 running, live preview visible |
-| Preview idle for several minutes         | No repeated DTS or frame duplication warnings |
-| Single capture in bright light           |          One photo, no flash, preview resumes |
-| Single capture in low light              |                         One illuminated photo |
-| Burst in bright light                    |          Ten distinct photos, preview resumes |
-| Burst in low light                       |                    All ten photos illuminated |
-| Cancel single countdown                  |                       LEDs stop, no new photo |
-| Cancel burst countdown                   |                      LEDs stop, no new photos |
-| Repeated Enter/B during countdown        |                  Overlapping request rejected |
-| Request during remaining flash           |                 R5 busy guard rejects request |
-| P during countdown or R5 busy window     |                              Request rejected |
-| Ctrl+C while idle                        |                 Preview stops, display clears |
-| Restart application                      |               Camera and GPIO available again |
-| Check storage                            |        Adequate space and correct photo count |
+| Test | Expected result |
+|---|---|
+| Fresh boot and startup | R5 running, live preview visible |
+| Preview idle for several minutes | No repeated DTS or frame duplication warnings |
+| Single capture in bright light | One photo, no flash, preview resumes |
+| Single capture in low light | One illuminated photo |
+| Burst in bright light | Ten distinct photos, preview resumes |
+| Burst in low light | All ten photos illuminated |
+| Cancel single countdown | LEDs stop, no new photo |
+| Cancel burst countdown | LEDs stop, no new photos |
+| Repeated Enter/B during countdown | Overlapping request rejected |
+| Request during remaining flash | R5 busy guard rejects request |
+| P during countdown or R5 busy window | Request rejected |
+| Ctrl+C while idle | Preview stops, display clears |
+| Restart application | Camera and GPIO available again |
+| Check storage | Adequate space and correct photo count |
 
 Record actual logs and test conditions. Previously observed single capture duration was 1537 ms with a two-second flash. One ten-photo burst produced ten files spanning approximately 604 ms between first and last filename timestamps (about 14.9 frames/s over nine intervals). These are measured examples, not worst-case guarantees. The 2500 ms flash passed initial testing; confirm all frames in several low-light bursts before a demo.
 
