@@ -37,8 +37,10 @@
 
 #define CAMERA_DEVICE "/dev/video3"
 #define CAMERA_WIDTH 1280
-#define CAMERA_HEIGHT 960
+#define CAMERA_HEIGHT 720
 #define WARMUP_FRAMES 20
+
+#define PHOTO_DIRECTORY "/var/lib/photobooth/photos"
 
 struct buffer {
     void *start;
@@ -262,10 +264,10 @@ static void *grabber_thread(void *arg)
             clock_gettime(CLOCK_REALTIME, &timestamp);
 
             snprintf(out_name,
-                     sizeof(out_name),
-                     "photo_%ld_%09ld.ppm",
-                     (long)timestamp.tv_sec,
-                     timestamp.tv_nsec);
+                sizeof(out_name),
+                PHOTO_DIRECTORY "/photo_%ld_%09ld.ppm",
+                (long)timestamp.tv_sec,
+                timestamp.tv_nsec);
 
             size_t rowBytes = fmt.fmt.pix.width * 3U;
             size_t stride = fmt.fmt.pix.bytesperline;
@@ -318,7 +320,11 @@ static void *grabber_thread(void *arg)
             }
 
             if (saved) {
-                printf("Photo saved: %s\n", out_name);
+                printf("[CAPTURE] Photo successfully saved.\n");
+                printf("[CAPTURE] File: %s\n", out_name);
+                printf("[CAPTURE] Resolution: %u x %u\n",
+                      fmt.fmt.pix.width,
+                      fmt.fmt.pix.height);
             } else {
                 fprintf(stderr, "Failed to save photo.\n");
                 remove(out_name);
@@ -400,6 +406,17 @@ void Grabber_capture(void)
     pthread_detach(thread);
 
     pthread_mutex_unlock(&captureMutex);
+}
+
+bool Grabber_isCapturing(void)
+{
+    pthread_mutex_lock(&captureMutex);
+
+    bool active = captureActive;
+
+    pthread_mutex_unlock(&captureMutex);
+
+    return active;
 }
 
 void Grabber_cleanup(void)

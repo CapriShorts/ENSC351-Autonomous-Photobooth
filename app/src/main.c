@@ -5,6 +5,9 @@
 #include <signal.h>
 #include <stdbool.h>
 #include <gpiod.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <errno.h>
 
 #include "hal/light_sensor.h"
 #include "grabber.h"
@@ -19,6 +22,81 @@
 #define FLASH_PULSE_MS 800
 
 static volatile sig_atomic_t running = 1;
+static pid_t previewPid = -1;
+
+static void start_preview(void)
+{
+    if (previewPid > 0) {
+        return;
+    }
+
+    previewPid = fork();
+
+    if (previewPid < 0) {
+        perror("Failed to start preview");
+        return;
+    }
+
+    if (previewPid == 0) {
+
+        execlp("ffmpeg", "ffmpeg",
+               "-hide_banner",
+               "-loglevel", "warning",
+               "-nostdin",
+               "-f", "video4linux2",
+               "-i", "/dev/video3",
+               "-vf",
+               "scale=1024:600:force_original_aspect_ratio=decrease,"
+               "pad=1024:600:(ow-iw)/2:(oh-ih)/2",
+               "-fps_mode", "passthrough",
+               "-c:v", "rawvideo",
+               "-pix_fmt", "bgra",
+               "-f", "fbdev",
+               "/dev/fb0",
+               (char *)NULL);
+
+        perror("Failed to execute FFmpeg");
+        _exit(1);
+    }
+
+    printf("Camera preview started.\n");
+}
+
+static void stop_preview(void)
+{
+    if (previewPid <= 0) {
+        return;
+    }
+
+    kill(previewPid, SIGTERM);
+
+    while (waitpid(previewPid, NULL, 0) < 0) {
+        if (errno != EINTR) {
+            break;
+        }
+    }
+
+    previewPid = -1;
+
+    printf("Camera preview stopped.\n");
+}
+
+static void capture_photo(void)
+{
+    stop_preview();
+
+    printf("Capturing photo...\n");
+
+    Grabber_capture();
+
+    // Wait for capture to finish and release the camera
+    Grabber_cleanup();
+
+    // Restore live preview
+    if (running) {
+        start_preview();
+    }
+}
 
 static void handle_signal(int signal)
 {
@@ -101,6 +179,9 @@ int main(void)
 
     printf("GPIO24 initialized.\n");
 
+    // Start live camera preview
+    start_preview();
+
     printf("\nPhoto Booth Controls:\n");
     printf("Enter: Start countdown\n");
     printf("C + Enter: Cancel countdown\n");
@@ -136,11 +217,10 @@ int main(void)
         }
 
         // Manual photo capture
+        // Manual photo capture
         if (input[0] == 'p' || input[0] == 'P') {
 
-            printf("Capturing photo...\n");
-
-            Grabber_capture();
+            capture_photo();
 
             continue;
         }
@@ -195,6 +275,7 @@ int main(void)
     gpiod_chip_close(chip);
 
     // Clean up camera and light sensor
+    stop_preview();
     Grabber_cleanup();
     LightSensor_cleanup();
 
